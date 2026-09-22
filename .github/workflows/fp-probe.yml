@@ -1,0 +1,28 @@
+# TEMPORARY probe for the idempotency-fingerprint fix: one key, two different commits.
+name: fingerprint probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          API: ${{ secrets.TOWER_API_URL }}
+          TOKEN: ${{ secrets.TOWER_FN_DEPLOY_TOKEN_5E6CD9B2_A6F7_4BD2_B00D_AAD87AF80CDE }}
+          FN: 5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde
+          KEY: fp-${{ github.run_id }}
+        run: |
+          start() {
+            curl -sS -X POST "$API/api/functions/$FN/builds" \
+              -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $KEY" \
+              -H 'content-type: application/json' \
+              -d "{\"source\":{\"type\":\"github\",\"ref\":\"main\",\"commit\":\"$1\"}}"
+          }
+          show() { python3 -c 'import json,sys;r=json.load(sys.stdin);d=r.get("data") or {};print("  success=",r.get("success"),"build=",(d.get("id") or "-")[:8],"commit=",((d.get("source") or {}).get("commit") or "-")[:7],"code=",(r.get("error") or {}).get("code","-"),"msg=",r.get("message"))'; }
+          echo "1) first request, commit HEAD"
+          start 0f7110db29529684562905d0e460c8b9aa2893c6 | show
+          echo "2) SAME key, SAME commit -> must replay the same build"
+          start 0f7110db29529684562905d0e460c8b9aa2893c6 | show
+          echo "3) SAME key, DIFFERENT commit -> must conflict, not replay"
+          start 7d1fd98b867a5349a75aacf30c0ddc080c193d87 | show
+          echo "4) SAME key, same commit UPPER-CASED -> must still replay"
+          start 0F7110DB29529684562905D0E460C8B9AA2893C6 | show
