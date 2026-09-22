@@ -1,0 +1,25 @@
+# TEMPORARY probe for the commit pin. Deterministic where two pushes are not: it names an
+# older commit that IS on main, and a commit that is NOT, and shows what the server does.
+name: pin probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          API: ${{ secrets.TOWER_API_URL }}
+          TOKEN: ${{ secrets.TOWER_FN_DEPLOY_TOKEN_5E6CD9B2_A6F7_4BD2_B00D_AAD87AF80CDE }}
+          FN: 5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde
+        run: |
+          start() {
+            curl -sS -X POST "$API/api/functions/$FN/builds" \
+              -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: pin-$1-${{ github.run_id }}" \
+              -H 'content-type: application/json' \
+              -d "{\"source\":{\"type\":\"github\",\"ref\":\"main\",\"commit\":\"$2\"}}"
+          }
+          echo "--- older commit that IS on main ---"
+          start onbranch 02ae8c3de7f8e41ed5209c7bf74bb3c3da3b3ae1 | python3 -c 'import json,sys;r=json.load(sys.stdin);d=r.get("data") or {};print(d.get("id"), d.get("status"), (d.get("source") or {}).get("commit"), r.get("message"))'
+          echo "--- commit that is NOT on main ---"
+          start offbranch 97dbcdc32a93a5cefdcf264ff2f1385ac57ad9ff | python3 -c 'import json,sys;r=json.load(sys.stdin);print("success=",r.get("success"),"code=",(r.get("error") or {}).get("code"),"msg=",r.get("message"))'
+          echo "--- short sha (shape check) ---"
+          start shortsha 02ae8c3 | python3 -c 'import json,sys;r=json.load(sys.stdin);print("success=",r.get("success"),"code=",(r.get("error") or {}).get("code"),"reason=",((r.get("error") or {}).get("details") or {}).get("reason"))'
