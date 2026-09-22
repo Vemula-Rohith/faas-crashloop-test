@@ -1,0 +1,35 @@
+# Installed by Tower Cloud for function ad-commitpin-test. THIS FILE IS YOURS — edit it freely.
+#
+# Tower only needs the step below to keep calling the deploy action with this
+# function's token. Everything else is yours to change: add paths for shared code
+# your function depends on, pin the action to a commit, change runs-on, add steps.
+# Enabling auto-deploy again rotates the token and will NOT rewrite this file.
+# Function: ad-commitpin-test (5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde)
+name: "Tower deploy: ad-commitpin-test"
+on:
+  push:
+    branches: ["main"]
+concurrency:
+  group: tower-fn-5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and deploy on Tower
+        uses: Tower-Cloud/function-deploy-action@v1
+        with:
+          api-url: ${{ secrets.TOWER_API_URL }}
+          function-id: 5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde
+          token: ${{ secrets.TOWER_FN_DEPLOY_TOKEN_5E6CD9B2_A6F7_4BD2_B00D_AAD87AF80CDE }}
+          ref: ${{ github.ref_name }}
+          commit: ${{ github.sha }}
+          idempotency-key: ${{ github.sha }}-${{ github.run_attempt }}
+      - name: Release the Tower build slot on cancellation
+        if: cancelled()
+        uses: Tower-Cloud/function-deploy-action@v1
+        with:
+          api-url: ${{ secrets.TOWER_API_URL }}
+          function-id: 5e6cd9b2-a6f7-4bd2-b00d-aad87af80cde
+          token: ${{ secrets.TOWER_FN_DEPLOY_TOKEN_5E6CD9B2_A6F7_4BD2_B00D_AAD87AF80CDE }}
+          cancel: "true"
