@@ -1,0 +1,26 @@
+# TEMPORARY probe: starts two deploy-token builds back to back so the server's
+# newest-commit-wins supersede path can be observed. Two separate pushes cannot
+# exercise it reliably — a build finishes faster than a runner can be cancelled.
+# Distinct idempotency keys are required or the second call would replay the first.
+name: supersede probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: start two builds back to back
+        env:
+          API: ${{ secrets.TOWER_API_URL }}
+          TOKEN: ${{ secrets.TOWER_FN_DEPLOY_TOKEN_0F43C4DE_637C_43F8_B5A6_6F6BBA67B382 }}
+          FN: 0f43c4de-637c-43f8-b5a6-6f6bba67b382
+        run: |
+          start() {
+            curl -sS -X POST "$API/api/functions/$FN/builds" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Idempotency-Key: probe-$1-${{ github.run_id }}" \
+              -H 'content-type: application/json' \
+              -d '{"source":{"type":"github","ref":"main"}}'
+          }
+          echo "first:"; start 1 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("data",{}).get("id"), d.get("data",{}).get("status"), d.get("message"))'
+          echo "second (should supersede the first):"
+          start 2 | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("data",{}).get("id"), d.get("data",{}).get("status"), d.get("message"))'
