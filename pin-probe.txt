@@ -1,1 +1,1 @@
-pin A
+pin B
