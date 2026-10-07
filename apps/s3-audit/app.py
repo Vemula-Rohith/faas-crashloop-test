@@ -13,7 +13,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
     def do_GET(self):
         with lock: snapshot=list(events)
-        self.reply({"version":"ui-audit-v1","bootId":boot,"events":snapshot})
+        self.reply({"version":"ui-audit-v2","bootId":boot,"events":snapshot})
     def do_POST(self):
         raw=self.rfile.read(int(self.headers.get("Content-Length","0")))
         try: data=json.loads(raw)
